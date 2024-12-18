@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Swap API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            width: 400px;
+            text-align: center;
+        }
+        input[type="text"] {
+            width: 90%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .result {
+            margin-top: 20px;
+        }
+        .result img {
+            max-width: 100%;
+            border-radius: 8px;
+        }
+        .loading {
+            margin-top: 20px;
+            font-size: 18px;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Face Swap</h1>
+        <p>Enter image URLs to swap faces</p>
+
+        <input type="text" id="swapImageUrl" placeholder="Swap Image URL" />
+        <input type="text" id="targetImageUrl" placeholder="Target Image URL" />
+        
+        <button id="swapButton">Swap Faces</button>
+
+        <div class="result" id="result">
+            <!-- Result will appear here -->
+        </div>
+        <div class="loading" id="loading">
+            <!-- Loading text will appear here while polling -->
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('swapButton').addEventListener('click', async function() {
+            const swapImageUrl = document.getElementById('swapImageUrl').value;
+            const targetImageUrl = document.getElementById('targetImageUrl').value;
+            const token = 'cm4sa18ph0001mn034pxq8krj'; // Bearer token
+            
+            // Validate input URLs
+            if (!swapImageUrl || !targetImageUrl) {
+                alert('Please provide both image URLs.');
+                return;
+            }
+
+            // Correct request body format
+            const requestBody = {
+                input: {
+                    swap_image: swapImageUrl,
+                    target_image: targetImageUrl
+                }
+            };
+
+            try {
+                const response = await fetch('https://api.magicapi.dev/api/v1/magicapi/faceswap-v2/faceswap/image/run', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json(); // Get more details from the error response
+                    console.error('Error response:', errorData); // Log the error data
+                    throw new Error(`Request failed: ${errorData.message || 'Unknown error'}`);
+                }
+
+                const data = await response.json();
+                const requestId = data?.id; // Get the request ID from the response
+                
+                if (requestId) {
+                    document.getElementById('loading').textContent = "Processing... Please wait.";
+                    // Start polling the status of the request
+                    await pollRequestStatus(requestId, token);
+                } else {
+                    alert('Request ID not found.');
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        });
+
+        async function pollRequestStatus(requestId, token) {
+            const checkStatusUrl = `https://api.magicapi.dev/api/v1/magicapi/faceswap-v2/faceswap/image/status/${requestId}`;
+            
+            let resultReceived = false;
+
+            while (!resultReceived) {
+                try {
+                    const response = await fetch(checkStatusUrl, {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Status check failed');
+                    }
+
+                    const data = await response.json();
+                    const status = data?.status;
+                    const output = data?.output;
+
+                    if (status === "COMPLETED" && output) {
+                        document.getElementById('result').innerHTML = `
+                            <h2>Swapped Image</h2>
+                            <img src="${output}" alt="Swapped Face" />
+                        `;
+                        document.getElementById('loading').textContent = ""; // Clear loading message
+                        resultReceived = true;
+                    } else if (status === "FAILED") {
+                        document.getElementById('loading').textContent = "Processing failed. Please try again.";
+                        resultReceived = true;
+                    } else {
+                        document.getElementById('loading').textContent = "Still processing... Please wait.";
+                    }
+
+                } catch (error) {
+                    document.getElementById('loading').textContent = "Error checking status. Please try again later.";
+                    break;
+                }
+
+                // Wait 5 seconds before checking again
+                await new Promise(resolve => setTimeout(resolve, 5000));
+            }
+        }
+    </script>
+
+</body>
+</html>

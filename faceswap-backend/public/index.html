@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FaceSwap App</title>
+    <style>
+        /* Styling for the page */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f9;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            width: 400px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        .input-group {
+            margin: 20px 0;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        input[type="file"] {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        #output {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        #image-result img {
+            max-width: 100%;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>FaceSwap App</h1>
+
+        <form id="faceswap-form" enctype="multipart/form-data">
+            <div class="input-group">
+                <label for="swap_image">Swap Image (e.g., person to swap):</label>
+                <input type="file" id="swap_image" name="swap_image" required />
+            </div>
+            <div class="input-group">
+                <label for="target_image">Target Image (e.g., person to swap into):</label>
+                <input type="file" id="target_image" name="target_image" required />
+            </div>
+
+            <button type="submit">Submit</button>
+        </form>
+
+        <div id="output">
+            <h2>Result:</h2>
+            <div id="image-result"></div>
+        </div>
+    </div>
+
+    <script>
+        // Script to handle form submission and communicate with the backend
+
+        document.getElementById('faceswap-form').addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            // Get the file inputs
+            const swapImageFile = document.getElementById('swap_image').files[0];
+            const targetImageFile = document.getElementById('target_image').files[0];
+
+            if (!swapImageFile || !targetImageFile) {
+                alert("Please upload both images.");
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('swap_image', swapImageFile);
+            formData.append('target_image', targetImageFile);
+
+            try {
+                // Send the images to the backend API
+                const response = await fetch('http://localhost:3000/faceswap', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to process the images.');
+                }
+
+                const result = await response.json();
+
+                // Check if the response contains the swapped image
+                if (result && result.data) {
+                    const swappedImageUrl = result.data.image_url;  // Assuming this is returned
+                    document.getElementById('image-result').innerHTML = `<img src="${swappedImageUrl}" alt="Swapped Face">`;
+                } else {
+                    alert('Face swap failed. Please try again.');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred while processing the request.');
+            }
+        });
+    </script>
+</body>
+</html>
